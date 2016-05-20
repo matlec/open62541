@@ -193,17 +193,16 @@ static UA_StatusCode socket_set_nonblocking(UA_Int32 sockfd) {
 }
 
 static UA_Int32
-socket_accept(UA_Int32 serversockfd)
-{
-  struct sockaddr_storage cli_addr;
-  socklen_t cli_len = sizeof(cli_addr);
-  int newsockfd = accept(serversockfd, (struct sockaddr *) &cli_addr, &cli_len);
-  int i = 1;
-  setsockopt(serversockfd, IPPROTO_TCP, TCP_NODELAY, (void *)&i, sizeof(i));
-  if (newsockfd >= 0) {
-    socket_set_nonblocking(newsockfd);
-  }
-  return newsockfd;
+socket_accept(UA_Int32 serversockfd) {
+    struct sockaddr_storage cli_addr;
+    socklen_t cli_len = sizeof(cli_addr);
+    int newsockfd = accept(serversockfd, (struct sockaddr *) &cli_addr, &cli_len);
+    int i = 1;
+    setsockopt(serversockfd, IPPROTO_TCP, TCP_NODELAY, (void *)&i, sizeof(i));
+    if (newsockfd >= 0) {
+      socket_set_nonblocking(newsockfd);
+    }
+    return newsockfd;
 }
 
 static void FreeConnectionCallback(UA_Server *server, void *ptr) {
@@ -325,19 +324,17 @@ ServerNetworkLayerTCP_add(ServerNetworkLayerTCP *layer, UA_Int32 newsockfd) {
     struct sockaddr_storage addr;
     socklen_t addrlen = sizeof(addr);
     getpeername(newsockfd, (struct sockaddr*)&addr, &addrlen);
-    if (addr.ss_family == AF_INET)
-    {
-      struct sockaddr_in* addrV4 = (struct sockaddr_in*)&addr;
-      UA_LOG_INFO(layer->logger, UA_LOGCATEGORY_NETWORK, "New Connection %i over TCP/IPv4 from %s:%d",
-        newsockfd, inet_ntoa(addrV4->sin_addr), ntohs(addrV4->sin_port));
+    if(addr.ss_family == AF_INET) {
+        struct sockaddr_in* addrV4 = (struct sockaddr_in*)&addr;
+        UA_LOG_INFO(layer->logger, UA_LOGCATEGORY_NETWORK, "New Connection %i over TCP/IPv4 from %s:%d",
+          newsockfd, inet_ntoa(addrV4->sin_addr), ntohs(addrV4->sin_port));
     }
-    else if (addr.ss_family == AF_INET6)
-    {
-      struct sockaddr_in6* addrV6 = (struct sockaddr_in6*)&addr;
-      char straddr[INET6_ADDRSTRLEN];
-      inet_ntop(AF_INET6, &addrV6->sin6_addr, straddr, sizeof(straddr));
-      UA_LOG_INFO(layer->logger, UA_LOGCATEGORY_NETWORK, "New Connection %i over TCP/IPv6 from %s:%d",
-        newsockfd, straddr, ntohs(addrV6->sin6_port));
+    else if(addr.ss_family == AF_INET6) {
+        struct sockaddr_in6* addrV6 = (struct sockaddr_in6*)&addr;
+        char straddr[INET6_ADDRSTRLEN];
+        inet_ntop(AF_INET6, &addrV6->sin6_addr, straddr, sizeof(straddr));
+        UA_LOG_INFO(layer->logger, UA_LOGCATEGORY_NETWORK, "New Connection %i over TCP/IPv6 from %s:%d",
+          newsockfd, straddr, ntohs(addrV6->sin6_port));
     }
     UA_Connection_init(c);
     c->sockfd = newsockfd;
@@ -389,10 +386,10 @@ ServerNetworkLayerTCP_start(UA_ServerNetworkLayer *nl, UA_Logger logger) {
         return UA_STATUSCODE_BADINTERNALERROR;
     }
     if ((layer->serversockfdV6 = socket(PF_INET6, SOCK_STREAM, 0)) == (UA_Int32)INVALID_SOCKET) {
-      UA_LOG_WARNING(layer->logger, UA_LOGCATEGORY_NETWORK, "Error opening socket, code: %d",
-        WSAGetLastError());
-      CLOSESOCKET(layer->serversockfdV4);
-      return UA_STATUSCODE_BADINTERNALERROR;
+        UA_LOG_WARNING(layer->logger, UA_LOGCATEGORY_NETWORK, "Error opening socket, code: %d",
+          WSAGetLastError());
+        CLOSESOCKET(layer->serversockfdV4);
+        return UA_STATUSCODE_BADINTERNALERROR;
     }
 #else
     if((layer->serversockfdV4 = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
@@ -400,9 +397,9 @@ ServerNetworkLayerTCP_start(UA_ServerNetworkLayer *nl, UA_Logger logger) {
         return UA_STATUSCODE_BADINTERNALERROR;
     }
     if ((layer->serversockfdV6 = socket(PF_INET6, SOCK_STREAM, 0)) < 0) {
-      UA_LOG_WARNING(layer->logger, UA_LOGCATEGORY_NETWORK, "Error opening socket");
-      CLOSESOCKET(layer->serversockfdV4);
-      return UA_STATUSCODE_BADINTERNALERROR;
+        UA_LOG_WARNING(layer->logger, UA_LOGCATEGORY_NETWORK, "Error opening socket");
+        CLOSESOCKET(layer->serversockfdV4);
+        return UA_STATUSCODE_BADINTERNALERROR;
     }
 #endif
 
@@ -415,23 +412,23 @@ ServerNetworkLayerTCP_start(UA_ServerNetworkLayer *nl, UA_Logger logger) {
         CLOSESOCKET(layer->serversockfdV6);
         return UA_STATUSCODE_BADINTERNALERROR;
     }
-    if (setsockopt(layer->serversockfdV6, SOL_SOCKET,
+    if(setsockopt(layer->serversockfdV6, SOL_SOCKET,
       SO_REUSEADDR, (const char *)&optval, sizeof(optval)) == -1) {
-      UA_LOG_WARNING(layer->logger, UA_LOGCATEGORY_NETWORK,
-        "Error during setting of socket options (SO_REUSEADDR)");
-      CLOSESOCKET(layer->serversockfdV4);
-      CLOSESOCKET(layer->serversockfdV6);
-      return UA_STATUSCODE_BADINTERNALERROR;
+        UA_LOG_WARNING(layer->logger, UA_LOGCATEGORY_NETWORK,
+          "Error during setting of socket options (SO_REUSEADDR)");
+        CLOSESOCKET(layer->serversockfdV4);
+        CLOSESOCKET(layer->serversockfdV6);
+        return UA_STATUSCODE_BADINTERNALERROR;
     }
 
     optval = 1;
-    if (setsockopt(layer->serversockfdV6, IPPROTO_IPV6,
+    if(setsockopt(layer->serversockfdV6, IPPROTO_IPV6,
                   IPV6_V6ONLY, (const char*)&optval, sizeof(optval)) == -1) {
-      UA_LOG_WARNING(layer->logger, UA_LOGCATEGORY_NETWORK,
+        UA_LOG_WARNING(layer->logger, UA_LOGCATEGORY_NETWORK,
                        "Error during setting of socket options (IPV6_V6ONLY)");
-      CLOSESOCKET(layer->serversockfdV4);
-      CLOSESOCKET(layer->serversockfdV6);
-      return UA_STATUSCODE_BADINTERNALERROR;
+        CLOSESOCKET(layer->serversockfdV4);
+        CLOSESOCKET(layer->serversockfdV6);
+        return UA_STATUSCODE_BADINTERNALERROR;
     }
 
     const struct sockaddr_in serv_addrV4 =
@@ -439,10 +436,10 @@ ServerNetworkLayerTCP_start(UA_ServerNetworkLayer *nl, UA_Logger logger) {
       .sin_port = htons(layer->port),.sin_zero = { 0 } };
     if (bind(layer->serversockfdV4, (const struct sockaddr *)&serv_addrV4,
       sizeof(serv_addrV4)) < 0) {
-      UA_LOG_WARNING(layer->logger, UA_LOGCATEGORY_NETWORK, "Error during socket binding");
-      CLOSESOCKET(layer->serversockfdV4);
-      CLOSESOCKET(layer->serversockfdV6);
-      return UA_STATUSCODE_BADINTERNALERROR;
+        UA_LOG_WARNING(layer->logger, UA_LOGCATEGORY_NETWORK, "Error during socket binding");
+        CLOSESOCKET(layer->serversockfdV4);
+        CLOSESOCKET(layer->serversockfdV6);
+        return UA_STATUSCODE_BADINTERNALERROR;
     }
     socket_set_nonblocking(layer->serversockfdV4);
     listen(layer->serversockfdV4, MAXBACKLOG);
@@ -486,18 +483,16 @@ ServerNetworkLayerTCP_getJobs(UA_ServerNetworkLayer *nl, UA_Job **jobs, UA_UInt1
     if(UA_fd_isset(layer->serversockfdV4, &fdset)) {
         resultsize--;
         UA_Int32 newsockfd = socket_accept(layer->serversockfdV4);
-        if (newsockfd > 0)
-        {
+        if (newsockfd > 0) {
           ServerNetworkLayerTCP_add(layer, newsockfd);
         }
     }
     if (UA_fd_isset(layer->serversockfdV6, &fdset)) {
-      resultsize--;
-      UA_Int32 newsockfd = socket_accept(layer->serversockfdV6);
-      if (newsockfd > 0)
-      {
-        ServerNetworkLayerTCP_add(layer, newsockfd);
-      }
+        resultsize--;
+        UA_Int32 newsockfd = socket_accept(layer->serversockfdV6);
+        if (newsockfd > 0) {
+            ServerNetworkLayerTCP_add(layer, newsockfd);
+        }
     }
 
     /* alloc enough space for a cleanup-connection and free-connection job per resulted socket */
