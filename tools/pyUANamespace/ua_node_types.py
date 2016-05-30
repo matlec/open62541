@@ -601,6 +601,9 @@ class opcua_node_t:
       elif at == "ParentNodeId":
         # Silently ignore this one..
         xmlelement.removeAttribute(at)
+      elif at == "SymbolicName":
+        # Silently ignore this one
+        xmlelement.removeAttribute(at)
 
     for x in thisxml.childNodes:
       if x.nodeType == x.ELEMENT_NODE:
@@ -739,19 +742,12 @@ class opcua_node_referenceType_t(opcua_node_t):
   __isAbstract__    = False
   __symmetric__     = False
   __reference_inverseName__   = ""
-  __reference_referenceType__ = None
 
   def __init_subType__(self):
     self.nodeClass(NODE_CLASS_REFERENCETYPE)
     self.__reference_isAbstract__    = False
     self.__reference_symmetric__     = False
     self.__reference_inverseName__   = ""
-    self.__reference_referenceType__ = None
-
-  def referenceType(self,data=None):
-    if isinstance(data, opcua_node_t):
-      self.__reference_referenceType__ = data
-    return self.__reference_referenceType__
 
   def isAbstract(self,data=None):
     if isinstance(data, bool):
@@ -769,10 +765,6 @@ class opcua_node_referenceType_t(opcua_node_t):
     return self.__reference_inverseName__
 
   def sanitizeSubType(self):
-    if not isinstance(self.referenceType(), opcua_referencePointer_t):
-      log(self, "ReferenceType " + str(self.referenceType()) + " of " + str(self.id()) + " is not a pointer (ReferenceType is manditory for references).", LOG_LEVEL_ERROR)
-      self.__reference_referenceType__ = None
-      return False
     return True
 
   def parseXMLSubType(self, xmlelement):
@@ -858,9 +850,6 @@ class opcua_node_object_t(opcua_node_t):
     for (at, av) in xmlelement.attributes.items():
       if at == "EventNotifier":
         self.eventNotifier(int(av))
-        xmlelement.removeAttribute(at)
-      elif at == "SymbolicName":
-        # Silently ignore this one
         xmlelement.removeAttribute(at)
       else:
         log(self, "Don't know how to process attribute " + at + " (" + av + ")", LOG_LEVEL_ERROR)
@@ -1030,9 +1019,6 @@ class opcua_node_variable_t(opcua_node_t):
         # dataType needs to be linked to a node once the namespace is read
         self.getNamespace().linkLater(self.dataType())
         xmlelement.removeAttribute(at)
-      elif at == "SymbolicName":
-        # Silently ignore this one
-        xmlelement.removeAttribute(at)
       else:
         log(self, "Don't know how to process attribute " + at + " (" + av + ")", LOG_LEVEL_ERROR)
 
@@ -1066,6 +1052,9 @@ class opcua_node_variable_t(opcua_node_t):
 
   def printOpen62541CCode_SubtypeEarly(self, bootstrapping = True):
     code = []
+    if(bootstrapping):
+      code.append("UA_Variant *" + self.getCodePrintableID() + "_variant = UA_alloca(sizeof(UA_Variant));")
+      code.append("UA_Variant_init(" + self.getCodePrintableID() + "_variant);")
     # If we have an encodable value, try to encode that
     if self.dataType() != None and isinstance(self.dataType().target(), opcua_node_dataType_t):
       # Delegate the encoding of the datavalue to the helper if we have
@@ -1074,9 +1063,6 @@ class opcua_node_variable_t(opcua_node_t):
         if self.value() != None:
           code = code + self.value().printOpen62541CCode(bootstrapping)
           return code
-    if(bootstrapping):
-      code.append("UA_Variant *" + self.getCodePrintableID() + "_variant = UA_alloca(sizeof(UA_Variant));")
-      code.append("UA_Variant_init(" + self.getCodePrintableID() + "_variant);")
     return code
   
   def printOpen62541CCode_Subtype(self, unPrintedReferences=[], bootstrapping = True):
@@ -1323,6 +1309,9 @@ class opcua_node_variableType_t(opcua_node_t):
 
   def printOpen62541CCode_SubtypeEarly(self, bootstrapping = True):
     code = []
+    if(bootstrapping):
+      code.append("UA_Variant *" + self.getCodePrintableID() + "_variant = UA_alloca(sizeof(UA_Variant));")
+      code.append("UA_Variant_init(" + self.getCodePrintableID() + "_variant);")
     # If we have an encodable value, try to encode that
     if self.dataType() != None and isinstance(self.dataType().target(), opcua_node_dataType_t):
       # Delegate the encoding of the datavalue to the helper if we have
@@ -1331,9 +1320,6 @@ class opcua_node_variableType_t(opcua_node_t):
         if self.value() != None:
           code = code + self.value().printOpen62541CCode(bootstrapping)
           return code
-    if(bootstrapping):
-      code.append("UA_Variant *" + self.getCodePrintableID() + "_variant = UA_alloca(sizeof(UA_Variant));")
-      code.append("UA_Variant_init(" + self.getCodePrintableID() + "_variant);")
     return code
   
   def printOpen62541CCode_Subtype(self, unPrintedReferences=[], bootstrapping = True):

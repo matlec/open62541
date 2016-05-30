@@ -32,6 +32,7 @@ class preProcessDocument:
   parseOK   = False;
   containedNodes  = [] # contains tuples of (opcua_node_id_t, xmlelement)
   referencedNodes = [] # contains tuples of (opcua_node_id_t, xmlelement)
+  aliasNodes = [] # contains tuples of (opcua_node_id_t, xmlelement)
   namespaceOrder  = [] # contains xmlns:sX attributed as tuples (int ns, string name)
   namespaceQualifiers = []      # contains all xmlns:XYZ qualifiers that might prefix value aliases (like "<uax:Int32>")
   referencedNamesSpaceUris = [] # contains <NamespaceUris> URI elements
@@ -42,6 +43,7 @@ class preProcessDocument:
     self.parseOK   = True
     self.containedNodes  = []
     self.referencedNodes = []
+    self.aliasNodes = []
     self.namespaceOrder  = []
     self.referencedNamesSpaceUris = []
     self.namespaceQualifiers = []
@@ -117,7 +119,7 @@ class preProcessDocument:
       if "xmlns:s" in key: # get a numeric nsId and modelname/uri
         self.namespaceOrder.append((int(key.replace("xmlns:s","")), ns[0].getAttribute(key)))
     
-    # Get all nodeIds contained in this XML
+    # Get all nodeIds and aliases contained in this XML
     for nd in ns[0].childNodes:
       if nd.nodeType != nd.ELEMENT_NODE:
         continue
@@ -127,8 +129,12 @@ class preProcessDocument:
         for ref in refs.childNodes:
           if ref.nodeType == ref.ELEMENT_NODE:
             self.referencedNodes.append( (opcua_node_id_t(ref.firstChild.data), ref) )
-    
-    log(self, "Nodes: " + str(len(self.containedNodes)) + " References: " + str(len(self.referencedNodes)), LOG_LEVEL_DEBUG)
+      elif nd.tagName == "Aliases":
+        for alias in nd.childNodes:
+          if alias.nodeType == alias.ELEMENT_NODE and alias.tagName == "Alias":
+            self.aliasNodes.append( (opcua_node_id_t(alias.firstChild.data), alias) )
+
+    log(self, "Nodes: " + str(len(self.containedNodes)) + " References: " + str(len(self.referencedNodes)) + " Aliases: " + str(len(self.aliasNodes)), LOG_LEVEL_DEBUG)
   
   def getNamespaceId(self):
     """ namespaceId()
@@ -162,17 +168,16 @@ class preProcessDocument:
         
         return: URI string corresponding to nsId
     """
-    # Might be the more reliable method: Get the URI from the xmlns attributes (they have numers)
+    # Lookup the provided namespace in <NamespaceUris/>
+    if len(self.referencedNamesSpaceUris) > 0  and len(self.referencedNamesSpaceUris) >= nsId-1:
+      return self.referencedNamesSpaceUris[nsId-1]
+    
+    # Fallback: Get the URI from the xmlns attributes
     if len(self.namespaceOrder) > 0:
       for el in self.namespaceOrder:
         if el[0] == nsId:
           return el[1]
-    
-    # Fallback: 
-    #  Some models do not have xmlns:sX attributes, but still <URI>s (usually when they only reference NS0)
-    if len(self.referencedNamesSpaceUris) > 0  and len(self.referencedNamesSpaceUris) >= nsId-1:
-      return self.referencedNamesSpaceUris[nsId-1]
-    
+
     #Nope, not found.
     return ""
   
@@ -209,7 +214,7 @@ class preProcessDocument:
   def reassignNamespaceId(self, currentNsId, newNsId):
     """ reassignNamespaceId
         
-        Iterates over all nodes in this document, find those in namespace currentNsId and changes them to newNsId.
+        Iterates over all nodes and aliases in this document, find those in namespace currentNsId and changes them to newNsId.
         
         returns: nothing
     """ 
@@ -225,6 +230,11 @@ class preProcessDocument:
         nd[1].setAttribute(u'NodeId', nd[1].getAttribute(u'NodeId').replace("ns="+str(currentNsId), "ns="+str(newNsId)))
         nd[0].ns = newNsId
         nd[0].toString()
+    for aliasNd in self.aliasNodes:
+      if aliasNd[0].ns == currentNsId:
+        aliasNd[1].firstChild.data = aliasNd[1].firstChild.data.replace("ns="+str(currentNsId), "ns="+str(newNsId))
+        aliasNd[0].ns = newNsId
+        aliasNd[0].toString()
   
 class open62541_XMLPreprocessor:
   preProcDocuments = []
